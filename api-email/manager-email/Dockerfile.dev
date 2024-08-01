@@ -1,0 +1,15 @@
+FROM node:latest as base
+
+WORKDIR /home/node/manager-email
+
+COPY ./manager-email/package*.json ./
+
+RUN npm i
+
+COPY ./manager-email/ ./
+
+FROM base as production
+
+ENV NODE_PATH=./build
+
+RUN npm run build

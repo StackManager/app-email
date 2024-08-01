@@ -1,0 +1,80 @@
+version: '3.7'
+
+services:
+  service_mongo_email:
+    image: mongo:latest
+    container_name: service_mongo_email
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=$MONGO_USERNAME
+      - MONGO_INITDB_ROOT_PASSWORD=$MONGO_PASSWORD
+    ports:
+      - 27019:27017
+    volumes:
+      - mongodb_data_container_email:/data/db
+    networks:
+      - my_network
+
+  service_node_email:
+    build:
+      context: .
+      dockerfile: ./services-email/Dockerfile.dev
+      target: base
+    volumes:
+      - ./services-email/src:/home/node/services-email/src
+      - ./services-email/nodemon.json:/home/node/services-email/nodemon.json
+    container_name: service_node_email
+    env_file: .env
+    environment:
+      - MONGO_HOSTNAME=service_mongo_email
+    expose:
+      - '3002'
+    ports:
+      - '3002:3000'
+    command: npm run dev
+    depends_on:
+      - service_mongo_email
+    networks:
+      - my_network
+
+  manager_node_email:
+    build:
+      context: .
+      dockerfile: ./manager-email/Dockerfile.dev
+      target: base
+    volumes:
+      - ./manager-email/src:/home/node/manager-email/src
+      - ./manager-email/nodemon.json:/home/node/manager-email/nodemon.json
+    container_name: manager_node_email
+    env_file: .env
+    environment:
+      - MONGO_HOSTNAME=service_mongo_email
+    command: npm run dev
+    depends_on:
+      - service_mongo_email
+    networks:
+      - my_network
+
+  mongo_express_email:
+    image: mongo-express
+    container_name: mongo-express-email
+    restart: unless-stopped
+    environment:
+      - ME_CONFIG_MONGODB_SERVER=service_mongo_email
+      - ME_CONFIG_MONGODB_PORT=27017
+      - ME_CONFIG_MONGODB_ADMINUSERNAME=$MONGO_USERNAME
+      - ME_CONFIG_MONGODB_ADMINPASSWORD=$MONGO_PASSWORD
+    ports:
+      - 8082:8081
+    depends_on:
+      - service_mongo_email
+    networks:
+      - my_network
+
+networks:
+  my_network:
+    external: true
+
+volumes:
+  mongodb_data_container_email:
